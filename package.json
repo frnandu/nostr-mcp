@@ -1,0 +1,41 @@
+{
+  "name": "nostr-mcp",
+  "version": "0.1.0",
+  "description": "A Model Context Protocol server for interacting with Nostr, enabling posting notes and more",
+  "type": "module",
+  "main": "build/index.js",
+  "bin": {
+    "nostr-server": "./build/index.js"
+  },
+  "files": [
+    "build",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "modelcontextprotocol",
+    "server",
+    "nostr",
+    "claude"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "0.6.0",
+    "@nostr-dev-kit/ndk": "^2.5.1",
+    "dotenv": "^16.4.5",
+    "zod": "^3.24.0",
+    "tsx": "^4.7.1",
+    "typescript": "^5.4.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.24",
+    "typescript": "^5.3.3"
+  }
+}
