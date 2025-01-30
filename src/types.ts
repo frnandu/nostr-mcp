@@ -41,3 +41,13 @@ export class NostrError extends Error {
     this.name = "NostrError";
   }
 }
+
+export enum ServerMode {
+  STDIN = "stdin",
+  SSE = "sse",
+}
+
+export interface ServerConfig {
+  mode: ServerMode;
+  port?: number; // For SSE mode
+}

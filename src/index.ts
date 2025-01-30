@@ -1,6 +1,7 @@
 import { config } from "dotenv";
 import { NostrServer } from "./server.js";
 import logger from "./utils/logger.js";
+import { ServerMode } from "./types.js";
 
 // Load environment variables
 config();
@@ -12,6 +13,9 @@ async function main() {
   // Get configuration from environment
   const relays = process.env.NOSTR_RELAYS?.split(",") || [];
   const nsecKey = process.env.NOSTR_NSEC_KEY;
+  const mode =
+    (process.env.MODE?.toLowerCase() as ServerMode) || ServerMode.STDIN;
+  const port = parseInt(process.env.PORT || "3000", 10);
 
   // Validate required environment variables
   if (!nsecKey) {
@@ -25,9 +29,10 @@ async function main() {
 
   try {
     // Create and start the server
-    const server = new NostrServer({ nsecKey, relays });
+    const server = new NostrServer({ nsecKey, relays }, { mode, port });
     await server.start();
   } catch (error) {
+    console.error(error);
     logger.error({ error }, "Failed to start server");
     process.exit(1);
   }

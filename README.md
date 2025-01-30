@@ -113,6 +113,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Join Nostr](https://start.njump.me/?s=npub1hr6v96g0phtxwys4x0tm3khawuuykz6s28uzwtj5j0zc7lunu99snw2e29)
 - [Nostr Manifesto](https://fiatjaf.com/nostr.html)
 - [Nostr Specifications](https://github.com/nostr-protocol/nips)
+- [Model Context Protocol](https://modelcontextprotocol.io/introduction)
+- [Visual testing tool for MCP servers](https://github.com/modelcontextprotocol/inspector)
 - [Awesome MCP Servers](https://github.com/punkpeye/awesome-mcp-servers)
 - [Awesome MCP Clients](https://github.com/punkpeye/awesome-mcp-clients)
 - [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk)

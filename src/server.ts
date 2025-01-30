@@ -1,5 +1,5 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import {
   ListToolsRequestSchema,
   CallToolRequestSchema,
@@ -9,9 +9,15 @@ import {
   TextContent,
 } from "@modelcontextprotocol/sdk/types.js";
 import { NostrClient } from "./nostr-client.js";
-import { Config, ConfigSchema, PostNoteSchema, NostrError } from "./types.js";
+import {
+  Config,
+  ConfigSchema,
+  PostNoteSchema,
+  NostrError,
+  ServerConfig,
+} from "./types.js";
 import logger from "./utils/logger.js";
-
+import express from "express";
 const SERVER_NAME = "nostr-mcp";
 const SERVER_VERSION = "0.0.1";
 
@@ -22,8 +28,10 @@ const SERVER_VERSION = "0.0.1";
 export class NostrServer {
   private server: Server;
   private client: NostrClient;
+  private transport?: SSEServerTransport;
+  private app: express.Application;
 
-  constructor(config: Config) {
+  constructor(config: Config, serverConfig: ServerConfig) {
     // Validate configuration using Zod schema
     const result = ConfigSchema.safeParse(config);
     if (!result.success) {
@@ -43,6 +51,25 @@ export class NostrServer {
         },
       },
     );
+    this.app = express();
+
+    // Initialize transport based on mode
+    this.app.get("/sse", async (req, res) => {
+      this.transport = new SSEServerTransport("/messages", res);
+      await this.server.connect(this.transport);
+    });
+
+    this.app.post("/messages", async (req, res) => {
+      if (!this.transport) {
+        res.status(400).json({ error: "No active SSE connection" });
+        return;
+      }
+      await this.transport.handlePostMessage(req, res);
+    });
+
+    this.app.listen(serverConfig.port, () => {
+      logger.info(`SSE Server listening on port ${serverConfig.port}`);
+    });
 
     this.setupHandlers();
   }
@@ -83,7 +110,9 @@ export class NostrServer {
     logger.info("Shutting down server...");
     try {
       await this.client.disconnect();
-      await this.server.close();
+      if (this.transport) {
+        await this.server.close();
+      }
       logger.info("Server shutdown complete");
       process.exit(code);
     } catch (error) {
@@ -191,8 +220,6 @@ export class NostrServer {
    */
   async start(): Promise<void> {
     await this.client.connect();
-    const transport = new StdioServerTransport();
-    await this.server.connect(transport);
-    logger.info("Nostr MCP server running on stdio");
+    logger.info({ mode: "sse" }, "Nostr MCP server running");
   }
 }
