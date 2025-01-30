@@ -4,6 +4,7 @@ A Model Context Protocol (MCP) server that enables AI models to interact with No
 
 Censorship resistance matters, even for LLMs.
 
+[![smithery badge](https://smithery.ai/badge/@AbdelStark/nostr-mcp)](https://smithery.ai/server/@AbdelStark/nostr-mcp)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![MCP](https://img.shields.io/badge/MCP-Protocol-blue?style=flat-square)](https://github.com/modelcontextprotocol/typescript-sdk)
 [![Nostr](https://img.shields.io/badge/Nostr-Protocol-purple?style=flat-square)](https://nostr.com/)
@@ -27,6 +28,15 @@ BTW, you should [join Nostr now!](https://start.njump.me/?s=npub1hr6v96g0phtxwys
 
 ## 🛠️ Installation
 
+### Installing via Smithery
+
+To install Nostr MCP Server for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@AbdelStark/nostr-mcp):
+
+```bash
+npx -y @smithery/cli install @AbdelStark/nostr-mcp --client claude
+```
+
+### Manual Installation
 1. Clone the repository:
 
 ```bash
