@@ -35,7 +35,13 @@ npm install
 
 1. Create a `.env` file:
 
+> 💡 You can copy the `.env.example` file and modify it as needed.
+
 ```env
+# Log level (debug, info, warn, error)
+LOG_LEVEL=debug
+# Node environment (development, production)
+NODE_ENV=development
 # List of Nostr relays to connect to
 NOSTR_RELAYS=wss://relay.damus.io,wss://relay.primal.net,wss://nos.lol
 # Your Nostr private key (starts with nsec)
