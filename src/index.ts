@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 import { config } from "dotenv";
 import { NostrServer } from "./server.js";
 import logger from "./utils/logger.js";
