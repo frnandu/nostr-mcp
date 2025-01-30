@@ -1,0 +1,29 @@
+# Smithery configuration file: https://smithery.ai/docs/config#smitheryyaml
+
+startCommand:
+  type: stdio
+  configSchema:
+    # JSON Schema defining the configuration options for the MCP.
+    type: object
+    required:
+      - logLevel
+      - nodeEnv
+      - nostrRelays
+      - nostrNsecKey
+    properties:
+      logLevel:
+        type: string
+        description: "Log level for server operations. Options: debug, info, warn, error."
+      nodeEnv:
+        type: string
+        description: "Node environment for the server. Options: development, production."
+      nostrRelays:
+        type: string
+        description: Comma-separated list of Nostr relays to connect to.
+      nostrNsecKey:
+        type: string
+        description: Your Nostr private key (starts with nsec).
+  commandFunction:
+    # A function that produces the CLI command to start the MCP on stdio.
+    |-
+    config => ({command: 'node', args: ['build/index.js'], env: {LOG_LEVEL: config.logLevel, NODE_ENV: config.nodeEnv, NOSTR_RELAYS: config.nostrRelays, NOSTR_NSEC_KEY: config.nostrNsecKey}})
