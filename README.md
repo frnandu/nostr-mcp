@@ -16,6 +16,11 @@ BTW, you should [join Nostr now!](https://start.njump.me/?s=npub1hr6v96g0phtxwys
 - 🔌 Connect to multiple relays
 - 🤖 MCP-compliant API for AI integration
 
+## 👷‍♂️ TODOs
+
+- [ ] Add support for multiple simultaneous connections
+- [ ] Implement stdin transport mode (configurable via environment variable)
+
 ## 📋 Prerequisites
 
 - Node.js 18+
