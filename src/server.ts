@@ -15,6 +15,7 @@ import {
   PostNoteSchema,
   NostrError,
   ServerConfig,
+  ZapNoteSchema,
 } from "./types.js";
 import logger from "./utils/logger.js";
 import express from "express";
@@ -125,7 +126,6 @@ export class NostrServer {
    * Registers available tools with the MCP server
    */
   private setupToolHandlers(): void {
-    // Register tool list handler
     this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
       tools: [
         {
@@ -142,10 +142,27 @@ export class NostrServer {
             required: ["content"],
           },
         } as Tool,
+        {
+          name: "send_zap",
+          description: "Send a Lightning zap to a Nostr user",
+          inputSchema: {
+            type: "object",
+            properties: {
+              nip05Address: {
+                type: "string",
+                description: "The NIP-05 address of the recipient",
+              },
+              amount: {
+                type: "number",
+                description: "Amount in sats to zap",
+              },
+            },
+            required: ["nip05Address", "amount"],
+          },
+        } as Tool,
       ],
     }));
 
-    // Register tool execution handler
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
       logger.debug({ name, args }, "Tool called");
@@ -154,6 +171,8 @@ export class NostrServer {
         switch (name) {
           case "post_note":
             return await this.handlePostNote(args);
+          case "send_zap":
+            return await this.handleSendZap(args);
           default:
             throw new McpError(
               ErrorCode.MethodNotFound,
@@ -185,6 +204,34 @@ export class NostrServer {
         {
           type: "text",
           text: `Note posted successfully!\nID: ${note.id}\nPublic Key: ${note.pubkey}`,
+        },
+      ] as TextContent[],
+    };
+  }
+
+  /**
+   * Handles the send_zap tool execution
+   * @param args - Tool arguments containing recipient and amount
+   */
+  private async handleSendZap(args: unknown) {
+    const result = ZapNoteSchema.safeParse(args);
+    if (!result.success) {
+      throw new McpError(
+        ErrorCode.InvalidParams,
+        `Invalid parameters: ${result.error.message}`,
+      );
+    }
+
+    const zap = await this.client.sendZap(
+      result.data.nip05Address,
+      result.data.amount,
+    );
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Zap request sent successfully!\nRecipient: ${zap.recipientPubkey}\nAmount: ${zap.amount} sats\nInvoice: ${zap.invoice}`,
         },
       ] as TextContent[],
     };

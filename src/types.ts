@@ -29,6 +29,8 @@ export enum NostrErrorCode {
   POST_ERROR = "post_error",
   NOT_CONNECTED = "not_connected",
   DISCONNECT_ERROR = "disconnect_error",
+  ZAP_ERROR = "zap_error",
+  INVALID_RECIPIENT = "invalid_recipient",
 }
 
 export class NostrError extends Error {
@@ -50,4 +52,19 @@ export enum ServerMode {
 export interface ServerConfig {
   mode: ServerMode;
   port?: number; // For SSE mode
+}
+
+// Add new schema for zap arguments
+export const ZapNoteSchema = z.object({
+  nip05Address: z.string().min(1, "NIP-05 address is required"),
+  amount: z.number().min(1, "Amount must be greater than 0"),
+});
+
+export type ZapNoteArgs = z.infer<typeof ZapNoteSchema>;
+
+// Add new interface for zap result
+export interface ZappedNote {
+  recipientPubkey: string;
+  amount: number;
+  invoice: string;
 }
