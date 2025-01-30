@@ -27,13 +27,13 @@ git clone https://github.com/AbdelStark/nostr-mcp
 cd nostr-mcp
 ```
 
-2. Install dependencies:
+1. Install dependencies:
 
 ```bash
 npm install
 ```
 
-3. Create a `.env` file:
+1. Create a `.env` file:
 
 ```env
 # List of Nostr relays to connect to
@@ -72,7 +72,7 @@ Example input:
 
 ### Project Structure
 
-```
+```text
 nostr-mcp/
 ├── src/
 │   ├── index.ts        # Main server entry point
@@ -104,12 +104,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk)
 - [Nostr Development Kit (NDK)](https://github.com/nostr-dev-kit/ndk)
-
-## 🙏 Acknowledgments
-
-- Model Context Protocol team for the MCP specification
-- Nostr community for the protocol and infrastructure
-- NDK team for the excellent Nostr development kit
 
 ## 📬 Contact
 
