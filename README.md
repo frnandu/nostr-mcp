@@ -8,6 +8,8 @@ Censorship resistance matters, even for LLMs.
 [![MCP](https://img.shields.io/badge/MCP-Protocol-blue?style=flat-square)](https://github.com/modelcontextprotocol/typescript-sdk)
 [![Nostr](https://img.shields.io/badge/Nostr-Protocol-purple?style=flat-square)](https://nostr.com/)
 
+BTW, you should [join Nostr now!](https://start.njump.me/?s=npub1hr6v96g0phtxwys4x0tm3khawuuykz6s28uzwtj5j0zc7lunu99snw2e29)
+
 ## 🚀 Features
 
 - 📝 Post notes to Nostr network
@@ -106,8 +108,13 @@ npm test
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🔗 Related Projects
+## 🔗 Resources
 
+- [Join Nostr](https://start.njump.me/?s=npub1hr6v96g0phtxwys4x0tm3khawuuykz6s28uzwtj5j0zc7lunu99snw2e29)
+- [Nostr Manifesto](https://fiatjaf.com/nostr.html)
+- [Nostr Specifications](https://github.com/nostr-protocol/nips)
+- [Awesome MCP Servers](https://github.com/punkpeye/awesome-mcp-servers)
+- [Awesome MCP Clients](https://github.com/punkpeye/awesome-mcp-clients)
 - [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk)
 - [Nostr Development Kit (NDK)](https://github.com/nostr-dev-kit/ndk)
 
