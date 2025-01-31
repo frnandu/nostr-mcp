@@ -65,8 +65,9 @@ NODE_ENV=development
 NOSTR_RELAYS=wss://relay.damus.io,wss://relay.primal.net,wss://nos.lol
 # Your Nostr private key (starts with nsec)
 NOSTR_NSEC_KEY=your_nsec_key_here
-# Server mode (stdin or sse)
-MODE=sse
+# Server mode (stdio or sse)
+SERVER_MODE=sse
+# Port for SSE mode
 PORT=9000
 ```
 

@@ -1,12 +1,12 @@
-export { NostrServer } from "./server.js";
 export { NostrClient } from "./nostr-client.js";
 export * from "./types.js";
 export { VERSION } from "./version.js";
 
 import { config } from "dotenv";
-import { NostrServer } from "./server.js";
+import { NostrSseServer } from "./sse_server.js";
+import { NostrStdioServer } from "./stdio_server.js";
+import { Config, ServerConfig, ServerMode } from "./types.js";
 import logger from "./utils/logger.js";
-import { ServerMode } from "./types.js";
 
 // Load environment variables
 config();
@@ -17,10 +17,18 @@ config();
 async function main() {
   // Get configuration from environment
   const relays = process.env.NOSTR_RELAYS?.split(",") || [];
-  const nsecKey = process.env.NOSTR_NSEC_KEY;
+  const nsecKey = process.env.NOSTR_NSEC_KEY || "";
+  const config: Config = {
+    nsecKey,
+    relays,
+  };
   const mode =
-    (process.env.MODE?.toLowerCase() as ServerMode) || ServerMode.STDIN;
-  const port = parseInt(process.env.PORT || "3000", 10);
+    (process.env.SERVER_MODE?.toLowerCase() as ServerMode) || ServerMode.STDIO;
+
+  const serverConfig: ServerConfig = {
+    port: parseInt(process.env.PORT || "3000"),
+    mode,
+  };
 
   // Validate required environment variables
   if (!nsecKey) {
@@ -33,11 +41,13 @@ async function main() {
   }
 
   try {
-    // Create and start the server
-    const server = new NostrServer({ nsecKey, relays }, { mode, port });
+    const server =
+      mode === "sse"
+        ? new NostrSseServer(config, serverConfig)
+        : new NostrStdioServer(config);
+
     await server.start();
   } catch (error) {
-    console.error(error);
     logger.error({ error }, "Failed to start server");
     process.exit(1);
   }

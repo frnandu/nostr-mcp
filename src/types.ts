@@ -45,7 +45,7 @@ export class NostrError extends Error {
 }
 
 export enum ServerMode {
-  STDIN = "stdin",
+  STDIO = "stdio",
   SSE = "sse",
 }
 
@@ -67,4 +67,9 @@ export interface ZappedNote {
   recipientPubkey: string;
   amount: number;
   invoice: string;
+}
+
+export interface NostrServer {
+  start(): Promise<void>;
+  shutdown(code?: number): Promise<never>;
 }
