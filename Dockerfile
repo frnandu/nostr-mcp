@@ -29,6 +29,9 @@ COPY --from=builder /app/build ./build
 # Copy the package.json and package-lock.json
 COPY --from=builder /app/package.json /app/package-lock.json ./
 
+# Install husky
+RUN npm install -g husky
+
 # Install only production dependencies
 RUN npm install --omit=dev
 
