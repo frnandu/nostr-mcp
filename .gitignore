@@ -130,3 +130,9 @@ dist
 .pnp.*
 
 .ai
+
+# Test coverage
+coverage/
+
+# ESLint cache
+.eslintcache

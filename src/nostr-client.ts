@@ -2,6 +2,8 @@ import NDK, {
   NDKEvent,
   NDKPrivateKeySigner,
   NDKZapper,
+  LnPaymentInfo,
+  NDKZapDetails,
 } from "@nostr-dev-kit/ndk";
 import { Config, NostrError, PostedNote, ZappedNote } from "./types.js";
 import logger from "./utils/logger.js";
@@ -133,13 +135,13 @@ export class NostrClient {
       logger.info({ recipient: recipient.npub }, "Found recipient");
 
       // Setup zapper with Lightning payment handler
-      let zapInvoice = "";
-      const lnPay = ({ pr }: { pr: string }) => {
-        zapInvoice = pr;
+      const lnPay = async (payment: NDKZapDetails<LnPaymentInfo>) => {
+        logger.info("please pay this invoice to complete the zap", payment.pr);
+        return undefined;
       };
-
       // Create and send zap
-      const zapper = new NDKZapper(recipient, amount, lnPay);
+      const zapper = new NDKZapper(recipient, amount, "sat", { lnPay });
+
       await zapper.zap();
 
       logger.info(
@@ -150,7 +152,7 @@ export class NostrClient {
       return {
         recipientPubkey: recipient.pubkey,
         amount,
-        invoice: zapInvoice,
+        invoice: "",
       };
     } catch (error) {
       logger.error({ error, nip05Address, amount }, "Failed to send zap");
