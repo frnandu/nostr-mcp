@@ -16,6 +16,8 @@ BTW, you should [join Nostr now!](https://start.njump.me/?s=npub1hr6v96g0phtxwys
 - 📝 Post notes to Nostr network
 - 🔌 Connect to multiple relays
 - 🤖 MCP-compliant API for AI integration
+- 💸 Send Lightning zaps to Nostr users (WIP)
+- 📡 Server-Sent Events (SSE) support for real-time communication
 
 ## 👷‍♂️ TODOs
 
@@ -63,6 +65,9 @@ NODE_ENV=development
 NOSTR_RELAYS=wss://relay.damus.io,wss://relay.primal.net,wss://nos.lol
 # Your Nostr private key (starts with nsec)
 NOSTR_NSEC_KEY=your_nsec_key_here
+# Server mode (stdin or sse)
+MODE=sse
+PORT=9000
 ```
 
 ## 🚦 Usage
@@ -88,6 +93,19 @@ Example input:
 ```json
 {
   "content": "Hello from Nostr! 👋"
+}
+```
+
+#### `send_zap`
+
+Sends a Lightning zap to a Nostr user.
+
+Example input:
+
+```json
+{
+  "nip05Address": "user@domain.com",
+  "amount": 1000
 }
 ```
 
@@ -137,7 +155,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📬 Contact
 
-Feel free to follow me if you’d like, using my public key:
+Feel free to follow me if you'd like, using my public key:
 
 ```text
 npub1hr6v96g0phtxwys4x0tm3khawuuykz6s28uzwtj5j0zc7lunu99snw2e29

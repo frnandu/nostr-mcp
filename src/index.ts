@@ -1,3 +1,8 @@
+export { NostrServer } from "./server.js";
+export { NostrClient } from "./nostr-client.js";
+export * from "./types.js";
+export { VERSION } from "./version.js";
+
 import { config } from "dotenv";
 import { NostrServer } from "./server.js";
 import logger from "./utils/logger.js";
