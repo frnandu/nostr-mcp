@@ -18,10 +18,9 @@ import {
   ZapNoteSchema,
 } from "./types.js";
 import logger from "./utils/logger.js";
-import { VERSION } from "./version.js";
 
 const SERVER_NAME = "nostr-mcp";
-const SERVER_VERSION = VERSION;
+const SERVER_VERSION = "0.0.5";
 
 export class NostrStdioServer implements NostrServer {
   private server: Server;
