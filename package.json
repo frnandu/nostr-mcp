@@ -1,18 +1,18 @@
 {
   "name": "nostr-mcp",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "A Model Context Protocol server for interacting with Nostr, enabling posting notes and more",
   "type": "module",
   "main": "build/index.js",
   "types": "build/index.d.ts",
+  "bin": {
+    "nostr-server": "./build/index.js"
+  },
   "exports": {
     ".": {
       "types": "./build/index.d.ts",
       "import": "./build/index.js"
     }
-  },
-  "bin": {
-    "nostr-server": "./build/index.js"
   },
   "files": [
     "build",
@@ -24,7 +24,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "start": "tsx src/index.ts",
+    "start": "node build/index.js",
     "dev": "tsx watch src/index.ts",
     "prepublishOnly": "npm run clean && npm run build",
     "lint": "eslint . --ext .ts --cache",
