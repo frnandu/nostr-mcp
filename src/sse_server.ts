@@ -21,7 +21,7 @@ import {
 import logger from "./utils/logger.js";
 import express from "express";
 const SERVER_NAME = "nostr-mcp";
-const SERVER_VERSION = "0.0.5";
+const SERVER_VERSION = "0.0.15";
 
 /**
  * NostrServer implements a Model Context Protocol server for Nostr

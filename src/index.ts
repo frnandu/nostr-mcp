@@ -13,7 +13,7 @@ config();
 /**
  * Validates environment variables and starts the Nostr MCP server
  */
-async function main() {
+export async function main() {
   // Get configuration from environment
   const relays = process.env.NOSTR_RELAYS?.split(",") || [];
   const nsecKey = process.env.NOSTR_NSEC_KEY || "";
@@ -52,8 +52,10 @@ async function main() {
   }
 }
 
-// Start the server
-main().catch((error) => {
-  logger.error({ error }, "Unhandled error");
-  process.exit(1);
-});
+// Only run if this file is being executed directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch((error) => {
+    logger.error({ error }, "Unhandled error");
+    process.exit(1);
+  });
+}

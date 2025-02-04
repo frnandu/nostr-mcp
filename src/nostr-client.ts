@@ -88,9 +88,9 @@ export class NostrClient {
       logger.debug({ id: event.id }, "Note signed successfully");
 
       // Publish to connected relays
-      await event.publish();
+      const publishedToRelays = await event.publish();
       logger.info(
-        { id: event.id, pubkey: event.pubkey },
+        { id: event.id, pubkey: event.pubkey, publishedToRelays },
         "Note published successfully",
       );
 
@@ -101,7 +101,6 @@ export class NostrClient {
       };
     } catch (error) {
       logger.error({ error, content }, "Failed to post note");
-
       if (error instanceof NostrError) {
         throw error;
       }

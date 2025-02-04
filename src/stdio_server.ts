@@ -20,7 +20,7 @@ import {
 import logger from "./utils/logger.js";
 
 const SERVER_NAME = "nostr-mcp";
-const SERVER_VERSION = "0.0.5";
+const SERVER_VERSION = "0.0.15";
 
 export class NostrStdioServer implements NostrServer {
   private server: Server;
@@ -31,6 +31,11 @@ export class NostrStdioServer implements NostrServer {
     if (!result.success) {
       throw new Error(`Invalid configuration: ${result.error.message}`);
     }
+
+    // Ensure stdout is only used for JSON-RPC
+    process.stdout.on("error", (error) => {
+      logger.error({ error }, "Error writing to stdout");
+    });
 
     this.client = new NostrClient(config);
     this.server = new Server(
@@ -215,8 +220,8 @@ export class NostrStdioServer implements NostrServer {
 
   async start(): Promise<void> {
     const transport = new StdioServerTransport();
-    await this.server.connect(transport);
     await this.client.connect();
+    await this.server.connect(transport);
     logger.info({ mode: "stdio" }, "Nostr MCP server running");
   }
 }
