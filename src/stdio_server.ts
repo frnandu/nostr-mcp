@@ -25,6 +25,7 @@ const SERVER_VERSION = "0.0.15";
 export class NostrStdioServer implements NostrServer {
   private server: Server;
   private client: NostrClient;
+  private originalStdout: NodeJS.WriteStream;
 
   constructor(config: Config) {
     const result = ConfigSchema.safeParse(config);
@@ -32,11 +33,36 @@ export class NostrStdioServer implements NostrServer {
       throw new Error(`Invalid configuration: ${result.error.message}`);
     }
 
-    // Ensure stdout is only used for JSON-RPC
-    process.stdout.on("error", (error) => {
-      logger.error({ error }, "Error writing to stdout");
-    });
+    // Save original stdout
+    this.originalStdout = process.stdout;
 
+    // Redirect stdout to stderr for non-JSON-RPC output
+    const stdoutWrite = process.stdout.write.bind(process.stdout);
+    const customWrite = function (
+      str: string | Uint8Array,
+      encodingOrCb?: BufferEncoding | ((err?: Error) => void),
+      cb?: (err?: Error) => void,
+    ): boolean {
+      let encoding: BufferEncoding | undefined;
+      let callback: ((err?: Error) => void) | undefined;
+      if (typeof encodingOrCb === "function") {
+        callback = encodingOrCb;
+        encoding = undefined;
+      } else {
+        encoding = encodingOrCb;
+        callback = cb;
+      }
+
+      // Only allow JSON-RPC messages through stdout
+      if (typeof str === "string" && str.includes('"jsonrpc":"2.0"')) {
+        return stdoutWrite(str, encoding, callback);
+      }
+      // Redirect everything else to stderr
+      return process.stderr.write(str, encoding, callback);
+    };
+    process.stdout.write = customWrite as typeof process.stdout.write;
+
+    // Initialize client after stdout redirection
     this.client = new NostrClient(config);
     this.server = new Server(
       {
@@ -82,6 +108,10 @@ export class NostrStdioServer implements NostrServer {
   async shutdown(code = 0): Promise<never> {
     logger.info("Shutting down server...");
     try {
+      // Restore original stdout
+      process.stdout.write = this.originalStdout.write.bind(
+        this.originalStdout,
+      );
       await this.client.disconnect();
       await this.server.close();
       logger.info("Server shutdown complete");
