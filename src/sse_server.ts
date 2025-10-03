@@ -18,6 +18,7 @@ import {
   ZapNoteSchema,
   NostrServer,
   UpdateProfileSchema,
+  GetRepliesSchema,
 } from "./types.js";
 import logger from "./utils/logger.js";
 import express from "express";
@@ -195,6 +196,25 @@ export class NostrSseServer implements NostrServer {
             required: ["nip05Address", "amount"],
           },
         } as Tool,
+        {
+          name: "get_replies",
+          description:
+            "List replies to a given Nostr note id (kind 1 with '#e' tag)",
+          inputSchema: {
+            type: "object",
+            properties: {
+              eventId: {
+                type: "string",
+                description: "The 64-char hex id of the original note",
+              },
+              limit: {
+                type: "number",
+                description: "Max number of replies to return (default 50)",
+              },
+            },
+            required: ["eventId"],
+          },
+        } as Tool,
       ],
     }));
 
@@ -210,6 +230,8 @@ export class NostrSseServer implements NostrServer {
             return await this.handleUpdateProfile(args);
           case "send_zap":
             return await this.handleSendZap(args);
+          case "get_replies":
+            return await this.handleGetReplies(args);
           default:
             throw new McpError(
               ErrorCode.MethodNotFound,
@@ -292,6 +314,35 @@ export class NostrSseServer implements NostrServer {
         {
           type: "text",
           text: `Zap request sent successfully!\nRecipient: ${zap.recipientPubkey}\nAmount: ${zap.amount} sats\nInvoice: ${zap.invoice}`,
+        },
+      ] as TextContent[],
+    };
+  }
+
+  /**
+   * Handles the get_replies tool execution
+   */
+  private async handleGetReplies(args: unknown) {
+    const result = GetRepliesSchema.safeParse(args);
+    if (!result.success) {
+      throw new McpError(
+        ErrorCode.InvalidParams,
+        `Invalid parameters: ${result.error.message}`,
+      );
+    }
+
+    const replies = await this.client.getReplies(result.data);
+    const lines = replies.map(
+      (r, idx) =>
+        `${idx + 1}. ${r.id} by ${r.pubkey}\n${r.content.slice(0, 280)}`,
+    );
+    const body = lines.length ? lines.join("\n\n") : "No replies found.";
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: body,
         },
       ] as TextContent[],
     };

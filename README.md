@@ -129,6 +129,19 @@ Example input:
 }
 ```
 
+#### `get_replies`
+
+Lists replies to a specific Nostr post (kind 1 events tagged with the original note id using `#e`).
+
+Example input:
+
+```json
+{
+  "eventId": "<64-hex-event-id>",
+  "limit": 20
+}
+```
+
 ## 🔧 Development
 
 ### Project Structure

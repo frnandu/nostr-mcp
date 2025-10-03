@@ -12,6 +12,8 @@ import {
   ZappedNote,
   UpdateProfileArgs,
   UpdatedProfileMetadata,
+  GetRepliesArgs,
+  ReplyNote,
 } from "./types.js";
 import logger from "./utils/logger.js";
 import { NostrErrorCode } from "./types.js";
@@ -212,6 +214,55 @@ export class NostrClient {
 
       throw new NostrError(
         "Failed to update profile metadata",
+        NostrErrorCode.POST_ERROR,
+        500,
+      );
+    }
+  }
+
+  /**
+   * Fetch replies (kind 1) to a given note id by filtering on '#e' tag.
+   */
+  async getReplies(args: GetRepliesArgs): Promise<ReplyNote[]> {
+    try {
+      this.validateState();
+
+      const { eventId, limit } = args;
+      const filter: Record<string, unknown> = {
+        kinds: [1],
+        "#e": [eventId],
+      };
+      if (limit) {
+        (filter as { limit: number }).limit = limit;
+      }
+
+      // fetchEvents returns a Set<NDKEvent>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const events: Set<NDKEvent> = (await (this.ndk as any).fetchEvents(
+        filter,
+      )) as Set<NDKEvent>;
+
+      const replies: ReplyNote[] = Array.from(events)
+        .map((ev) => ({
+          id: ev.id,
+          pubkey: ev.pubkey,
+          content: ev.content,
+          created_at: ev.created_at,
+        }))
+        .sort((a, b) => (b.created_at ?? 0) - (a.created_at ?? 0));
+
+      logger.info(
+        { eventId, count: replies.length },
+        "Fetched replies successfully",
+      );
+      return replies;
+    } catch (error) {
+      logger.error({ error, args }, "Failed to fetch replies");
+      if (error instanceof NostrError) {
+        throw error;
+      }
+      throw new NostrError(
+        "Failed to fetch replies",
         NostrErrorCode.POST_ERROR,
         500,
       );

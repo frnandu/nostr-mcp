@@ -74,6 +74,23 @@ export interface NostrServer {
   shutdown(code?: number): Promise<never>;
 }
 
+// Replies lookup
+export const GetRepliesSchema = z.object({
+  eventId: z
+    .string()
+    .regex(/^[0-9a-fA-F]{64}$/i, "eventId must be a 64-char hex string"),
+  limit: z.number().int().min(1).max(500).optional(),
+});
+
+export type GetRepliesArgs = z.infer<typeof GetRepliesSchema>;
+
+export interface ReplyNote {
+  id: string;
+  pubkey: string;
+  content: string;
+  created_at?: number;
+}
+
 // NIP-01 profile metadata (kind 0). Only standard fields are defined here; others are ignored.
 export const UpdateProfileSchema = z
   .object({
