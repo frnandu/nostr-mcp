@@ -1,5 +1,5 @@
 {
-  "name": "nostr-mcp",
+  "name": "@fmar/nostr-mcp",
   "version": "0.0.15",
   "description": "A Model Context Protocol server for interacting with Nostr, enabling posting notes and more",
   "type": "module",
