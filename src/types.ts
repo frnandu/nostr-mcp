@@ -73,3 +73,29 @@ export interface NostrServer {
   start(): Promise<void>;
   shutdown(code?: number): Promise<never>;
 }
+
+// NIP-01 profile metadata (kind 0). Only standard fields are defined here; others are ignored.
+export const UpdateProfileSchema = z
+  .object({
+    name: z.string().min(1).optional(),
+    about: z.string().min(1).optional(),
+    picture: z.string().url().optional(),
+    // Common, but optional extras supported by many clients
+    banner: z.string().url().optional(),
+    website: z.string().url().optional(),
+    nip05: z.string().optional(),
+    lud16: z.string().optional(),
+    display_name: z.string().optional(),
+  })
+  .refine((data) => Object.values(data).some((v) => v !== undefined), {
+    message: "At least one profile field must be provided",
+    path: [],
+  });
+
+export type UpdateProfileArgs = z.infer<typeof UpdateProfileSchema>;
+
+export interface UpdatedProfileMetadata {
+  id: string;
+  pubkey: string;
+  content: string; // JSON string of metadata
+}

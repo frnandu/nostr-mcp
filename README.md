@@ -97,6 +97,25 @@ Example input:
 }
 ```
 
+#### `update_profile`
+
+Updates your Nostr profile metadata (NIP-01 kind 0). Provide any subset of fields.
+
+Example input:
+
+```json
+{
+  "name": "Satoshi",
+  "about": "Building open money.",
+  "picture": "https://example.com/avatar.png",
+  "banner": "https://example.com/banner.jpg",
+  "website": "https://bitcoin.org",
+  "nip05": "satoshi@example.com",
+  "lud16": "satoshi@getalby.com",
+  "display_name": "Satoshi Nakamoto"
+}
+```
+
 #### `send_zap`
 
 Sends a Lightning zap to a Nostr user.

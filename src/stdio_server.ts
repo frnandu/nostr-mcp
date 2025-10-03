@@ -16,6 +16,7 @@ import {
   NostrError,
   NostrServer,
   ZapNoteSchema,
+  UpdateProfileSchema,
 } from "./types.js";
 import logger from "./utils/logger.js";
 
@@ -141,6 +142,39 @@ export class NostrStdioServer implements NostrServer {
           },
         } as Tool,
         {
+          name: "update_profile",
+          description:
+            "Update your profile metadata (NIP-01 kind 0: name, about, picture, etc.)",
+          inputSchema: {
+            type: "object",
+            properties: {
+              name: { type: "string", description: "Display name" },
+              display_name: {
+                type: "string",
+                description: "Full display name",
+              },
+              about: { type: "string", description: "About/Bio" },
+              picture: {
+                type: "string",
+                description: "Profile image URL",
+              },
+              banner: {
+                type: "string",
+                description: "Banner image URL",
+              },
+              website: { type: "string", description: "Website URL" },
+              nip05: {
+                type: "string",
+                description: "NIP-05 identifier (e.g., user@domain.com)",
+              },
+              lud16: {
+                type: "string",
+                description: "Lightning address (LUD-16)",
+              },
+            },
+          },
+        } as Tool,
+        {
           name: "send_zap",
           description: "Send a Lightning zap to a Nostr user",
           inputSchema: {
@@ -169,6 +203,8 @@ export class NostrStdioServer implements NostrServer {
         switch (name) {
           case "post_note":
             return await this.handlePostNote(args);
+          case "update_profile":
+            return await this.handleUpdateProfile(args);
           case "send_zap":
             return await this.handleSendZap(args);
           default:
@@ -198,6 +234,26 @@ export class NostrStdioServer implements NostrServer {
         {
           type: "text",
           text: `Note posted successfully!\nID: ${note.id}\nPublic Key: ${note.pubkey}`,
+        },
+      ] as TextContent[],
+    };
+  }
+
+  private async handleUpdateProfile(args: unknown) {
+    const result = UpdateProfileSchema.safeParse(args);
+    if (!result.success) {
+      throw new McpError(
+        ErrorCode.InvalidParams,
+        `Invalid parameters: ${result.error.message}`,
+      );
+    }
+
+    const ev = await this.client.updateProfileMetadata(result.data);
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Profile metadata updated!\nID: ${ev.id}\nPublic Key: ${ev.pubkey}`,
         },
       ] as TextContent[],
     };

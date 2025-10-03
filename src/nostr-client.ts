@@ -5,7 +5,14 @@ import NDK, {
   LnPaymentInfo,
   NDKZapDetails,
 } from "@nostr-dev-kit/ndk";
-import { Config, NostrError, PostedNote, ZappedNote } from "./types.js";
+import {
+  Config,
+  NostrError,
+  PostedNote,
+  ZappedNote,
+  UpdateProfileArgs,
+  UpdatedProfileMetadata,
+} from "./types.js";
 import logger from "./utils/logger.js";
 import { NostrErrorCode } from "./types.js";
 
@@ -161,6 +168,53 @@ export class NostrClient {
       }
 
       throw new NostrError("Failed to send zap", NostrErrorCode.ZAP_ERROR, 500);
+    }
+  }
+
+  /**
+   * Updates profile metadata (NIP-01 kind 0 event)
+   * @param metadata - Partial profile fields to set
+   * @returns Promise resolving to the published metadata event
+   * @throws {NostrError} When publishing fails
+   */
+  async updateProfileMetadata(
+    metadata: UpdateProfileArgs,
+  ): Promise<UpdatedProfileMetadata> {
+    try {
+      this.validateState();
+
+      logger.debug({ metadata }, "Creating profile metadata event");
+
+      const event = new NDKEvent(this.ndk);
+      event.kind = 0; // Metadata
+      // Content must be a JSON string per NIP-01
+      event.content = JSON.stringify(metadata);
+
+      await event.sign();
+      logger.debug({ id: event.id }, "Metadata event signed successfully");
+
+      const publishedToRelays = await event.publish();
+      logger.info(
+        { id: event.id, pubkey: event.pubkey, publishedToRelays },
+        "Profile metadata published successfully",
+      );
+
+      return {
+        id: event.id,
+        pubkey: event.pubkey,
+        content: event.content,
+      };
+    } catch (error) {
+      logger.error({ error, metadata }, "Failed to update profile metadata");
+      if (error instanceof NostrError) {
+        throw error;
+      }
+
+      throw new NostrError(
+        "Failed to update profile metadata",
+        NostrErrorCode.POST_ERROR,
+        500,
+      );
     }
   }
 
