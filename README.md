@@ -14,6 +14,7 @@ BTW, you should [join Nostr now!](https://start.njump.me/?s=npub1hr6v96g0phtxwys
 ## 🚀 Features
 
 - 📝 Post notes to Nostr network
+- 💬 Reply to notes and review unanswered conversations
 - 🔌 Connect to multiple relays
 - 🤖 MCP-compliant API for AI integration
 - 💸 Send Lightning zaps to Nostr users (WIP)
@@ -97,6 +98,22 @@ Example input:
 }
 ```
 
+#### `post_comment`
+
+Replies to an existing note (or comment) using NIP-10 threading tags.
+
+Example input:
+
+```json
+{
+  "rootId": "<64-hex-root-event-id>",
+  "parentId": "<64-hex-comment-id>",
+  "content": "Thanks for the feedback!"
+}
+```
+
+Omit `parentId` when replying directly to the root note.
+
 #### `update_profile`
 
 Updates your Nostr profile metadata (NIP-01 kind 0). Provide any subset of fields.
@@ -141,6 +158,21 @@ Example input:
   "limit": 20
 }
 ```
+
+#### `get_unanswered_comments`
+
+Finds comments on a note that you (the signer) have not responded to yet.
+
+Example input:
+
+```json
+{
+  "eventId": "<64-hex-event-id>",
+  "limit": 50
+}
+```
+
+Results include the comment id, author pubkey, and truncated content so you can decide what to answer next.
 
 ## 🔧 Development
 

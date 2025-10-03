@@ -10,13 +10,21 @@ import {
   NostrError,
   PostedNote,
   ZappedNote,
+  PostCommentArgs,
+  PostedComment,
   UpdateProfileArgs,
   UpdatedProfileMetadata,
   GetRepliesArgs,
   ReplyNote,
+  GetLatestPostsArgs,
+  LatestPost,
+  GetUnansweredCommentsArgs,
+  UnansweredComment,
 } from "./types.js";
 import logger from "./utils/logger.js";
 import { NostrErrorCode } from "./types.js";
+import { getPublicKey } from "nostr-tools";
+import { hexToBytes } from "@noble/hashes/utils";
 
 /**
  * NostrClient provides a high-level interface for interacting with the Nostr network
@@ -24,6 +32,7 @@ import { NostrErrorCode } from "./types.js";
  */
 export class NostrClient {
   private ndk: NDK;
+  private pubkey: string;
   private connected = false;
 
   /**
@@ -33,10 +42,12 @@ export class NostrClient {
   constructor(config: Config) {
     logger.debug({ relays: config.relays }, "Initializing NostrClient");
 
+    const signer = new NDKPrivateKeySigner(config.nsecKey);
+    this.pubkey = getPublicKey(hexToBytes(signer.privateKey || ""));
     // Initialize NDK with provided relays and signer
     this.ndk = new NDK({
       explicitRelayUrls: config.relays,
-      signer: new NDKPrivateKeySigner(config.nsecKey),
+      signer,
     });
   }
 
@@ -116,6 +127,68 @@ export class NostrClient {
 
       throw new NostrError(
         "Failed to post note",
+        NostrErrorCode.POST_ERROR,
+        500,
+      );
+    }
+  }
+
+  /**
+   * Posts a comment (reply) to an existing note using NIP-10 tagging.
+   */
+  async postComment(args: PostCommentArgs): Promise<PostedComment> {
+    try {
+      this.validateState();
+
+      const { rootId, parentId, content } = args;
+      const replyParentId = parentId ?? rootId;
+
+      logger.debug(
+        { rootId, parentId: replyParentId },
+        "Creating comment event",
+      );
+
+      const event = new NDKEvent(this.ndk);
+      event.kind = 1;
+      event.content = content;
+      const baseTags = event.tags ?? [];
+      event.tags = [
+        ...baseTags,
+        ["e", rootId, "", "root"],
+        ["e", replyParentId, "", "reply"],
+      ];
+
+      await event.sign();
+      logger.debug({ id: event.id }, "Comment signed successfully");
+
+      const publishedToRelays = await event.publish();
+      logger.info(
+        {
+          id: event.id,
+          pubkey: event.pubkey,
+          rootId,
+          parentId: replyParentId,
+          publishedToRelays,
+        },
+        "Comment published successfully",
+      );
+
+      return {
+        id: event.id,
+        content: event.content,
+        pubkey: event.pubkey,
+        rootId,
+        parentId: replyParentId,
+        tags: event.tags,
+      };
+    } catch (error) {
+      logger.error({ error, args }, "Failed to post comment");
+      if (error instanceof NostrError) {
+        throw error;
+      }
+
+      throw new NostrError(
+        "Failed to post comment",
         NostrErrorCode.POST_ERROR,
         500,
       );
@@ -221,6 +294,63 @@ export class NostrClient {
   }
 
   /**
+   * Fetch latest posts authored by a specific pubkey.
+   */
+  async getLatestPosts(args: GetLatestPostsArgs): Promise<LatestPost[]> {
+    try {
+      this.validateState();
+
+      const { limit } = args;
+      const authorPubkey = args.authorPubkey ?? this.pubkey;
+      if (!authorPubkey) {
+        throw new NostrError(
+          "Author public key is unavailable",
+          NostrErrorCode.POST_ERROR,
+          400,
+        );
+      }
+      const filter: Record<string, unknown> = {
+        kinds: [1],
+        authors: [authorPubkey],
+        limit: limit ?? 1,
+      };
+
+      // fetchEvents returns a Set<NDKEvent>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const events: Set<NDKEvent> = (await (this.ndk as any).fetchEvents(
+        filter,
+      )) as Set<NDKEvent>;
+
+      const posts: LatestPost[] = Array.from(events)
+        .map((ev) => ({
+          id: ev.id,
+          pubkey: ev.pubkey,
+          content: ev.content,
+          created_at: ev.created_at,
+        }))
+        .sort((a, b) => (b.created_at ?? 0) - (a.created_at ?? 0));
+
+      logger.info(
+        { authorPubkey, count: posts.length },
+        "Fetched latest posts successfully",
+      );
+
+      return posts;
+    } catch (error) {
+      logger.error({ error, args }, "Failed to fetch latest posts");
+      if (error instanceof NostrError) {
+        throw error;
+      }
+
+      throw new NostrError(
+        "Failed to fetch latest posts",
+        NostrErrorCode.POST_ERROR,
+        500,
+      );
+    }
+  }
+
+  /**
    * Fetch replies (kind 1) to a given note id by filtering on '#e' tag.
    */
   async getReplies(args: GetRepliesArgs): Promise<ReplyNote[]> {
@@ -263,6 +393,94 @@ export class NostrClient {
       }
       throw new NostrError(
         "Failed to fetch replies",
+        NostrErrorCode.POST_ERROR,
+        500,
+      );
+    }
+  }
+
+  /**
+   * Find comments on a note that have not received a reply from the current signer.
+   */
+  async getUnansweredComments(
+    args: GetUnansweredCommentsArgs,
+  ): Promise<UnansweredComment[]> {
+    try {
+      this.validateState();
+
+      const { eventId, limit } = args;
+      const authorPubkey = this.pubkey;
+      if (!authorPubkey) {
+        throw new NostrError(
+          "Signer public key is unavailable",
+          NostrErrorCode.POST_ERROR,
+          400,
+        );
+      }
+
+      const filter: Record<string, unknown> = {
+        kinds: [1],
+        "#e": [eventId],
+      };
+      if (limit) {
+        (filter as { limit: number }).limit = limit;
+      }
+
+      // fetchEvents returns a Set<NDKEvent>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const events: Set<NDKEvent> = (await (this.ndk as any).fetchEvents(
+        filter,
+      )) as Set<NDKEvent>;
+
+      const ourComments = Array.from(events).filter(
+        (event) => event.pubkey === authorPubkey,
+      );
+      const othersComments = Array.from(events).filter(
+        (event) => event.pubkey !== authorPubkey,
+      );
+
+      if (othersComments.length === 0) {
+        logger.info({ eventId }, "No external comments found to reply");
+        return [];
+      }
+
+      const repliedIds: string[] = [];
+      Array.from(ourComments).forEach((ev) => {
+        const ids = ev.tags
+          .filter(
+            (tag) => tag[0] === "e" && tag.length > 3 && tag[3] === "reply",
+          )
+          .map((ev) => ev[1]);
+        repliedIds.push(...ids);
+      });
+
+      const unrepliedComments = Array.from(othersComments).filter(
+        (event) => !repliedIds.includes(event.id),
+      );
+
+      logger.info(
+        {
+          eventId,
+          pendingReplies: unrepliedComments.length,
+        },
+        "Identified comments awaiting reply",
+      );
+
+      return unrepliedComments.map((event) => ({
+        id: event.id,
+        pubkey: event.pubkey,
+        content: event.content,
+        created_at: event.created_at,
+        tags: event.tags,
+        rootId: eventId,
+      }));
+    } catch (error) {
+      logger.error({ error, args }, "Failed to find unanswered comments");
+      if (error instanceof NostrError) {
+        throw error;
+      }
+      throw new NostrError(
+        "Failed to find unanswered comments",
         NostrErrorCode.POST_ERROR,
         500,
       );

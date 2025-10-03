@@ -21,6 +21,28 @@ export interface PostedNote {
   pubkey: string;
 }
 
+export const PostCommentSchema = z.object({
+  rootId: z
+    .string()
+    .regex(/^[0-9a-fA-F]{64}$/i, "rootId must be a 64-char hex string"),
+  content: z.string().min(1, "Comment content cannot be empty"),
+  parentId: z
+    .string()
+    .regex(/^[0-9a-fA-F]{64}$/i, "parentId must be a 64-char hex string")
+    .optional(),
+});
+
+export type PostCommentArgs = z.infer<typeof PostCommentSchema>;
+
+export interface PostedComment {
+  id: string;
+  content: string;
+  pubkey: string;
+  rootId: string;
+  parentId: string;
+  tags: string[][];
+}
+
 /**
  * Error codes for Nostr operations
  */
@@ -89,6 +111,40 @@ export interface ReplyNote {
   pubkey: string;
   content: string;
   created_at?: number;
+}
+
+export const GetLatestPostsSchema = z.object({
+  authorPubkey: z
+    .string()
+    .regex(/^[0-9a-fA-F]{64}$/i, "authorPubkey must be a 64-char hex string")
+    .optional(),
+  limit: z.number().int().min(1).max(500).optional(),
+});
+
+export type GetLatestPostsArgs = z.infer<typeof GetLatestPostsSchema>;
+
+export interface LatestPost {
+  id: string;
+  pubkey: string;
+  content: string;
+  created_at?: number;
+}
+
+export const GetUnansweredCommentsSchema = z.object({
+  eventId: z
+    .string()
+    .regex(/^[0-9a-fA-F]{64}$/i, "eventId must be a 64-char hex string"),
+  limit: z.number().int().min(1).max(500).optional(),
+});
+
+export type GetUnansweredCommentsArgs = z.infer<
+  typeof GetUnansweredCommentsSchema
+>;
+
+export interface UnansweredComment extends ReplyNote {
+  tags: string[][];
+  parentId?: string;
+  rootId: string;
 }
 
 // NIP-01 profile metadata (kind 0). Only standard fields are defined here; others are ignored.

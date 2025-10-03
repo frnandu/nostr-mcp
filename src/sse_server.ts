@@ -13,12 +13,15 @@ import {
   Config,
   ConfigSchema,
   PostNoteSchema,
+  PostCommentSchema,
   NostrError,
   ServerConfig,
   ZapNoteSchema,
   NostrServer,
   UpdateProfileSchema,
   GetRepliesSchema,
+  GetUnansweredCommentsSchema,
+  GetLatestPostsSchema,
 } from "./types.js";
 import logger from "./utils/logger.js";
 import express from "express";
@@ -146,6 +149,30 @@ export class NostrSseServer implements NostrServer {
           },
         } as Tool,
         {
+          name: "post_comment",
+          description:
+            "Reply to a note by posting a comment with NIP-10 threading tags",
+          inputSchema: {
+            type: "object",
+            properties: {
+              rootId: {
+                type: "string",
+                description: "ID of the original note (64-char hex)",
+              },
+              parentId: {
+                type: "string",
+                description:
+                  "Optional ID of the comment you're replying to (64-char hex)",
+              },
+              content: {
+                type: "string",
+                description: "The content of your comment",
+              },
+            },
+            required: ["rootId", "content"],
+          },
+        } as Tool,
+        {
           name: "update_profile",
           description:
             "Update your profile metadata (NIP-01 kind 0: name, about, picture, etc.)",
@@ -215,6 +242,45 @@ export class NostrSseServer implements NostrServer {
             required: ["eventId"],
           },
         } as Tool,
+        {
+          name: "get_unanswered_comments",
+          description:
+            "Find replies on a note that you have not responded to yet",
+          inputSchema: {
+            type: "object",
+            properties: {
+              eventId: {
+                type: "string",
+                description: "ID of the original note (64-char hex)",
+              },
+              limit: {
+                type: "number",
+                description: "Max comments to inspect (default 50)",
+              },
+            },
+            required: ["eventId"],
+          },
+        } as Tool,
+        {
+          name: "get_latest_posts",
+          description:
+            "Fetch the latest kind 1 posts, defaulting to the connected author",
+          inputSchema: {
+            type: "object",
+            properties: {
+              authorPubkey: {
+                type: "string",
+                description:
+                  "Optional author public key (64-char hex); defaults to the connected user",
+              },
+              limit: {
+                type: "number",
+                description: "Max number of posts to return (default 1)",
+              },
+            },
+            required: [],
+          },
+        } as Tool,
       ],
     }));
 
@@ -226,12 +292,18 @@ export class NostrSseServer implements NostrServer {
         switch (name) {
           case "post_note":
             return await this.handlePostNote(args);
+          case "post_comment":
+            return await this.handlePostComment(args);
           case "update_profile":
             return await this.handleUpdateProfile(args);
           case "send_zap":
             return await this.handleSendZap(args);
           case "get_replies":
             return await this.handleGetReplies(args);
+          case "get_unanswered_comments":
+            return await this.handleGetUnansweredComments(args);
+          case "get_latest_posts":
+            return await this.handleGetLatestPosts(args);
           default:
             throw new McpError(
               ErrorCode.MethodNotFound,
@@ -263,6 +335,29 @@ export class NostrSseServer implements NostrServer {
         {
           type: "text",
           text: `Note posted successfully!\nID: ${note.id}\nPublic Key: ${note.pubkey}`,
+        },
+      ] as TextContent[],
+    };
+  }
+
+  /**
+   * Handles the post_comment tool execution
+   */
+  private async handlePostComment(args: unknown) {
+    const result = PostCommentSchema.safeParse(args);
+    if (!result.success) {
+      throw new McpError(
+        ErrorCode.InvalidParams,
+        `Invalid parameters: ${result.error.message}`,
+      );
+    }
+
+    const comment = await this.client.postComment(result.data);
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Comment posted!\nID: ${comment.id}\nRoot: ${comment.rootId}\nParent: ${comment.parentId}`,
         },
       ] as TextContent[],
     };
@@ -337,6 +432,63 @@ export class NostrSseServer implements NostrServer {
         `${idx + 1}. ${r.id} by ${r.pubkey}\n${r.content.slice(0, 280)}`,
     );
     const body = lines.length ? lines.join("\n\n") : "No replies found.";
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: body,
+        },
+      ] as TextContent[],
+    };
+  }
+
+  private async handleGetLatestPosts(args: unknown) {
+    const result = GetLatestPostsSchema.safeParse(args);
+    if (!result.success) {
+      throw new McpError(
+        ErrorCode.InvalidParams,
+        `Invalid parameters: ${result.error.message}`,
+      );
+    }
+
+    const posts = await this.client.getLatestPosts(result.data);
+    const lines = posts.map(
+      (post, idx) =>
+        `${idx + 1}. ${post.id} by ${post.pubkey}\n${post.content.slice(0, 280)}`,
+    );
+    const body = lines.length ? lines.join("\n\n") : "No posts found.";
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: body,
+        },
+      ] as TextContent[],
+    };
+  }
+
+  /**
+   * Handles the get_unanswered_comments tool execution
+   */
+  private async handleGetUnansweredComments(args: unknown) {
+    const result = GetUnansweredCommentsSchema.safeParse(args);
+    if (!result.success) {
+      throw new McpError(
+        ErrorCode.InvalidParams,
+        `Invalid parameters: ${result.error.message}`,
+      );
+    }
+
+    const comments = await this.client.getUnansweredComments(result.data);
+    const lines = comments.map(
+      (comment, idx) =>
+        `${idx + 1}. ${comment.id} by ${comment.pubkey}\n${comment.content.slice(0, 280)}`,
+    );
+    const body = lines.length
+      ? lines.join("\n\n")
+      : "No unanswered comments found.";
 
     return {
       content: [
