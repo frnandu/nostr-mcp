@@ -20,6 +20,8 @@ import {
   LatestPost,
   GetUnansweredCommentsArgs,
   UnansweredComment,
+  CreateTimestampAttestationArgs,
+  CreatedTimestampAttestation,
 } from "./types.js";
 import logger from "./utils/logger.js";
 import { NostrErrorCode } from "./types.js";
@@ -378,6 +380,77 @@ export class NostrClient {
 
       throw new NostrError(
         "Failed to fetch latest posts",
+        NostrErrorCode.POST_ERROR,
+        500,
+      );
+    }
+  }
+
+  /**
+   * Creates a NIP-03 OpenTimestamps attestation event (kind 1040)
+   * @param args - The event ID, kind, and OTS proof data
+   * @returns Promise resolving to the published timestamp attestation event
+   * @throws {NostrError} When publishing fails
+   */
+  async createTimestampAttestation(
+    args: CreateTimestampAttestationArgs,
+  ): Promise<CreatedTimestampAttestation> {
+    try {
+      this.validateState();
+
+      const { eventId, eventKind, otsProof } = args;
+
+      logger.debug(
+        { eventId, eventKind, otsProofLength: otsProof.length },
+        "Creating NIP-03 timestamp attestation event",
+      );
+
+      const event = new NDKEvent(this.ndk);
+      event.kind = 1040; // NIP-03 OpenTimestamps Attestation
+
+      // Add required tags per NIP-03
+      event.tags = [
+        ["e", eventId, "", ""],
+        ["k", eventKind.toString()],
+      ];
+
+      // Content must be the full OTS proof per NIP-03
+      event.content = otsProof;
+
+      await event.sign();
+      logger.debug(
+        { id: event.id },
+        "NIP-03 attestation event signed successfully",
+      );
+
+      const publishedToRelays = await event.publish();
+      logger.info(
+        {
+          id: event.id,
+          pubkey: event.pubkey,
+          eventId,
+          eventKind,
+          otsProofLength: otsProof.length,
+          publishedToRelays,
+        },
+        "NIP-03 timestamp attestation published successfully",
+      );
+
+      return {
+        id: event.id,
+        pubkey: event.pubkey,
+        eventId,
+        eventKind,
+        otsProofLength: otsProof.length,
+      };
+    } catch (error) {
+      logger.error({ error, args }, "Failed to create timestamp attestation");
+      if (error instanceof NostrError) {
+        throw error;
+      }
+
+      throw new NostrError(
+        "Failed to create timestamp attestation",
         NostrErrorCode.POST_ERROR,
         500,
       );

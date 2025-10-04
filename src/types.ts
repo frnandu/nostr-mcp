@@ -172,3 +172,24 @@ export interface UpdatedProfileMetadata {
   pubkey: string;
   content: string; // JSON string of metadata
 }
+
+// NIP-03 OpenTimestamps Attestations for Events (kind 1040)
+export const CreateTimestampAttestationSchema = z.object({
+  eventId: z
+    .string()
+    .regex(/^[0-9a-fA-F]{64}$/i, "eventId must be a 64-char hex string"),
+  eventKind: z.number().int().min(0).max(65535),
+  otsProof: z.string().min(1, "OpenTimestamps proof content is required"),
+});
+
+export type CreateTimestampAttestationArgs = z.infer<
+  typeof CreateTimestampAttestationSchema
+>;
+
+export interface CreatedTimestampAttestation {
+  id: string;
+  pubkey: string;
+  eventId: string;
+  eventKind: number;
+  otsProofLength: number;
+}

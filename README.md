@@ -133,6 +133,24 @@ Example input:
 }
 ```
 
+#### `create_timestamp_attestation`
+
+Creates a NIP-03 OpenTimestamps attestation for a Nostr event (kind 1040). This allows you to cryptographically prove
+that a specific Nostr event existed at a certain point in time using the Bitcoin blockchain.
+
+Example input:
+
+```json
+{
+  "eventId": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+  "eventKind": 1,
+  "otsProof": "004f70656e54696d657374616d7073000050726f6f6600bf89e2e884e89294..."
+}
+```
+
+Note: The `otsProof` should be the complete OpenTimestamps proof data (usually obtained from another
+OpenTimestamps-capable MCP server or tool).
+
 #### `send_zap`
 
 Sends a Lightning zap to a Nostr user.

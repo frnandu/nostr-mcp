@@ -15,13 +15,14 @@ import {
   PostNoteSchema,
   PostCommentSchema,
   NostrError,
+  NostrServer,
   ServerConfig,
   ZapNoteSchema,
-  NostrServer,
   UpdateProfileSchema,
   GetRepliesSchema,
-  GetUnansweredCommentsSchema,
   GetLatestPostsSchema,
+  CreateTimestampAttestationSchema,
+  GetUnansweredCommentsSchema,
 } from "./types.js";
 import logger from "./utils/logger.js";
 import express from "express";
@@ -243,25 +244,6 @@ export class NostrSseServer implements NostrServer {
           },
         } as Tool,
         {
-          name: "get_unanswered_comments",
-          description:
-            "Find replies on a note that you have not responded to yet",
-          inputSchema: {
-            type: "object",
-            properties: {
-              eventId: {
-                type: "string",
-                description: "ID of the original note (64-char hex)",
-              },
-              limit: {
-                type: "number",
-                description: "Max comments to inspect (default 50)",
-              },
-            },
-            required: ["eventId"],
-          },
-        } as Tool,
-        {
           name: "get_latest_posts",
           description:
             "Fetch the latest kind 1 posts, defaulting to the connected author",
@@ -279,6 +261,55 @@ export class NostrSseServer implements NostrServer {
               },
             },
             required: [],
+          },
+        } as Tool,
+        {
+          name: "create_timestamp_attestation",
+          description:
+            "Create a NIP-03 OpenTimestamps attestation for a Nostr event",
+          inputSchema: {
+            type: "object",
+            properties: {
+              eventId: {
+                type: "string",
+                description: "ID of the event to attest (64-char hex string)",
+                pattern: "^[0-9a-fA-F]{64}$",
+              },
+              eventKind: {
+                type: "number",
+                description: "Kind of the event being attested",
+                minimum: 0,
+                maximum: 65535,
+              },
+              otsProof: {
+                type: "string",
+                description: "OpenTimestamps proof content (base64 or hex)",
+                minLength: 1,
+              },
+            },
+            required: ["eventId", "eventKind", "otsProof"],
+          },
+        } as Tool,
+        {
+          name: "get_unanswered_comments",
+          description:
+            "Find comments on a note that you haven't replied to yet",
+          inputSchema: {
+            type: "object",
+            properties: {
+              eventId: {
+                type: "string",
+                description: "ID of the original note (64-char hex string)",
+                pattern: "^[0-9a-fA-F]{64}$",
+              },
+              limit: {
+                type: "number",
+                description: "Max comments to inspect (default 50)",
+                minimum: 1,
+                maximum: 500,
+              },
+            },
+            required: ["eventId"],
           },
         } as Tool,
       ],
@@ -300,14 +331,16 @@ export class NostrSseServer implements NostrServer {
             return await this.handleSendZap(args);
           case "get_replies":
             return await this.handleGetReplies(args);
-          case "get_unanswered_comments":
-            return await this.handleGetUnansweredComments(args);
           case "get_latest_posts":
             return await this.handleGetLatestPosts(args);
+          case "create_timestamp_attestation":
+            return await this.handleCreateTimestampAttestation(args);
+          case "get_unanswered_comments":
+            return await this.handleGetUnansweredComments(args);
           default:
             throw new McpError(
               ErrorCode.MethodNotFound,
-              `Unknown tool: ${name}`,
+              `Unknown tool: ${request.params.name}`,
             );
         }
       } catch (error) {
@@ -464,6 +497,32 @@ export class NostrSseServer implements NostrServer {
         {
           type: "text",
           text: body,
+        },
+      ] as TextContent[],
+    };
+  }
+
+  /**
+   * Handles the create_timestamp_attestation tool execution
+   */
+  private async handleCreateTimestampAttestation(args: unknown) {
+    const result = CreateTimestampAttestationSchema.safeParse(args);
+    if (!result.success) {
+      throw new McpError(
+        ErrorCode.InvalidParams,
+        `Invalid parameters: ${result.error.message}`,
+      );
+    }
+
+    const attestation = await this.client.createTimestampAttestation(
+      result.data,
+    );
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: `NIP-03 timestamp attestation created!\nAttestation ID: ${attestation.id}\nPublic Key: ${attestation.pubkey}\nEvent ID: ${attestation.eventId}\nEvent Kind: ${attestation.eventKind}\nOTS Proof Length: ${attestation.otsProofLength} bytes`,
         },
       ] as TextContent[],
     };
