@@ -130,21 +130,16 @@ export interface LatestPost {
   created_at?: number;
 }
 
-export const GetUnansweredCommentsSchema = z.object({
-  eventId: z
-    .string()
-    .regex(/^[0-9a-fA-F]{64}$/i, "eventId must be a 64-char hex string"),
+export const GetUnrepliedMentionsSchema = z.object({
   limit: z.number().int().min(1).max(500).optional(),
 });
 
-export type GetUnansweredCommentsArgs = z.infer<
-  typeof GetUnansweredCommentsSchema
+export type GetUnrepliedMentionsArgs = z.infer<
+  typeof GetUnrepliedMentionsSchema
 >;
 
-export interface UnansweredComment extends ReplyNote {
+export interface UnrepliedMention extends ReplyNote {
   tags: string[][];
-  parentId?: string;
-  rootId: string;
 }
 
 // NIP-01 profile metadata (kind 0). Only standard fields are defined here; others are ignored.

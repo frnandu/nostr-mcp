@@ -21,7 +21,7 @@ import {
   GetRepliesSchema,
   GetLatestPostsSchema,
   CreateTimestampAttestationSchema,
-  GetUnansweredCommentsSchema,
+  GetUnrepliedMentionsSchema,
 } from "./types.js";
 import logger from "./utils/logger.js";
 
@@ -241,28 +241,6 @@ export class NostrStdioServer implements NostrServer {
           },
         } as Tool,
         {
-          name: "get_unanswered_comments",
-          description:
-            "Find comments on a note that you haven't replied to yet",
-          inputSchema: {
-            type: "object",
-            properties: {
-              eventId: {
-                type: "string",
-                description: "ID of the original note (64-char hex string)",
-                pattern: "^[0-9a-fA-F]{64}$",
-              },
-              limit: {
-                type: "number",
-                description: "Max comments to inspect (default 50)",
-                minimum: 1,
-                maximum: 500,
-              },
-            },
-            required: ["eventId"],
-          },
-        } as Tool,
-        {
           name: "get_latest_posts",
           description:
             "Fetch the latest kind 1 posts, defaulting to the connected author",
@@ -309,6 +287,21 @@ export class NostrStdioServer implements NostrServer {
             required: ["eventId", "eventKind", "otsProof"],
           },
         } as Tool,
+        {
+          name: "get_unreplied_mentions",
+          description:
+            "Find recent mentions that tag you via '#p' and have no reply",
+          inputSchema: {
+            type: "object",
+            properties: {
+              limit: {
+                type: "number",
+                description: "Max mentions to inspect (default 10)",
+              },
+            },
+            required: [],
+          },
+        } as Tool,
       ],
     }));
 
@@ -328,12 +321,12 @@ export class NostrStdioServer implements NostrServer {
             return await this.handleSendZap(args);
           case "get_replies":
             return await this.handleGetReplies(args);
-          case "get_unanswered_comments":
-            return await this.handleGetUnansweredComments(args);
           case "get_latest_posts":
             return await this.handleGetLatestPosts(args);
           case "create_timestamp_attestation":
             return await this.handleCreateTimestampAttestation(args);
+          case "get_unreplied_mentions":
+            return await this.handleGetUnrepliedMentions(args);
           default:
             throw new McpError(
               ErrorCode.MethodNotFound,
@@ -482,8 +475,8 @@ export class NostrStdioServer implements NostrServer {
     };
   }
 
-  private async handleGetUnansweredComments(args: unknown) {
-    const result = GetUnansweredCommentsSchema.safeParse(args);
+  private async handleGetUnrepliedMentions(args: unknown) {
+    const result = GetUnrepliedMentionsSchema.safeParse(args ?? {});
     if (!result.success) {
       throw new McpError(
         ErrorCode.InvalidParams,
@@ -491,14 +484,14 @@ export class NostrStdioServer implements NostrServer {
       );
     }
 
-    const comments = await this.client.getUnansweredComments(result.data);
-    const lines = comments.map(
-      (comment, idx) =>
-        `${idx + 1}. ${comment.id} by ${comment.pubkey}\n${comment.content.slice(0, 280)}`,
+    const mentions = await this.client.getUnrepliedMentions(result.data);
+    const lines = mentions.map(
+      (mention, idx) =>
+        `${idx + 1}. ${mention.id} by ${mention.pubkey}\n${mention.content.slice(0, 280)}`,
     );
     const body = lines.length
       ? lines.join("\n\n")
-      : "No unanswered comments found.";
+      : "No unreplied mentions found.";
 
     return {
       content: [

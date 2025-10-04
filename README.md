@@ -133,6 +133,57 @@ Example input:
 }
 ```
 
+#### `send_zap`
+
+Sends a Lightning zap to a Nostr user by resolving their NIP-05 identifier and issuing a Lightning invoice.
+
+Example input:
+
+```json
+{
+  "nip05Address": "user@domain.com",
+  "amount": 1000
+}
+```
+
+#### `get_latest_posts`
+
+Fetches the most recent kind 1 posts for the connected account or an optional author public key.
+
+Example input:
+
+```json
+{
+  "authorPubkey": "b8f4c2e90f0dd667121533d7b8dafd77384b0b5051f8272e5493c58f7f93e14b",
+  "limit": 3
+}
+```
+
+#### `get_replies`
+
+Lists replies to a specific Nostr post (kind 1 events tagged with the original note id using `#e`).
+
+Example input:
+
+```json
+{
+  "eventId": "3a4f8c2e1d0b5a6978c1f2e3d4b5a6978c1f2e3d4b5a6978c1f2e3d4b5a6978c",
+  "limit": 20
+}
+```
+
+#### `get_unreplied_mentions`
+
+Surfaces recent mentions that tag your public key with `#p` and are still waiting for your reply.
+
+Example input:
+
+```json
+{
+  "limit": 5
+}
+```
+
 #### `create_timestamp_attestation`
 
 Creates a NIP-03 OpenTimestamps attestation for a Nostr event (kind 1040). This allows you to cryptographically prove
@@ -150,47 +201,6 @@ Example input:
 
 Note: The `otsProof` should be the complete OpenTimestamps proof data (usually obtained from another
 OpenTimestamps-capable MCP server or tool).
-
-#### `send_zap`
-
-Sends a Lightning zap to a Nostr user.
-
-Example input:
-
-```json
-{
-  "nip05Address": "user@domain.com",
-  "amount": 1000
-}
-```
-
-#### `get_replies`
-
-Lists replies to a specific Nostr post (kind 1 events tagged with the original note id using `#e`).
-
-Example input:
-
-```json
-{
-  "eventId": "<64-hex-event-id>",
-  "limit": 20
-}
-```
-
-#### `get_unanswered_comments`
-
-Finds comments on a note that you (the signer) have not responded to yet.
-
-Example input:
-
-```json
-{
-  "eventId": "<64-hex-event-id>",
-  "limit": 50
-}
-```
-
-Results include the comment id, author pubkey, and truncated content so you can decide what to answer next.
 
 ## 🔧 Development
 

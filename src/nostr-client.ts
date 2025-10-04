@@ -18,10 +18,10 @@ import {
   ReplyNote,
   GetLatestPostsArgs,
   LatestPost,
-  GetUnansweredCommentsArgs,
-  UnansweredComment,
   CreateTimestampAttestationArgs,
   CreatedTimestampAttestation,
+  GetUnrepliedMentionsArgs,
+  UnrepliedMention,
 } from "./types.js";
 import logger from "./utils/logger.js";
 import { NostrErrorCode } from "./types.js";
@@ -507,15 +507,14 @@ export class NostrClient {
   }
 
   /**
-   * Find comments on a note that have not received a reply from the current signer.
+   * Fetch mentions (kind 1) that tag our pubkey with "p" and are not yet replied to by us.
    */
-  async getUnansweredComments(
-    args: GetUnansweredCommentsArgs,
-  ): Promise<UnansweredComment[]> {
+  async getUnrepliedMentions(
+    args: GetUnrepliedMentionsArgs,
+  ): Promise<UnrepliedMention[]> {
     try {
       this.validateState();
 
-      const { eventId, limit } = args;
       const authorPubkey = this.pubkey;
       if (!authorPubkey) {
         throw new NostrError(
@@ -525,69 +524,90 @@ export class NostrClient {
         );
       }
 
-      const filter: Record<string, unknown> = {
+      const limit = args.limit ?? 10;
+      const mentionFilter: Record<string, unknown> = {
         kinds: [1],
-        "#e": [eventId],
+        "#p": [authorPubkey],
+        limit,
       };
-      if (limit) {
-        (filter as { limit: number }).limit = limit;
-      }
 
       // fetchEvents returns a Set<NDKEvent>
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const events: Set<NDKEvent> = (await (this.ndk as any).fetchEvents(
-        filter,
+      const mentionEvents: Set<NDKEvent> = (await (this.ndk as any).fetchEvents(
+        mentionFilter,
       )) as Set<NDKEvent>;
 
-      const ourComments = Array.from(events).filter(
-        (event) => event.pubkey === authorPubkey,
-      );
-      const othersComments = Array.from(events).filter(
-        (event) => event.pubkey !== authorPubkey,
-      );
+      const mentions = Array.from(mentionEvents)
+        .filter((event) => event.pubkey !== authorPubkey)
+        .map((event) => ({
+          event,
+          id: event.id,
+        }));
 
-      if (othersComments.length === 0) {
-        logger.info({ eventId }, "No external comments found to reply");
+      if (mentions.length === 0) {
+        logger.info({ authorPubkey }, "No mentions found to evaluate");
         return [];
       }
 
-      const repliedIds: string[] = [];
-      Array.from(ourComments).forEach((ev) => {
-        const ids = ev.tags
-          .filter(
-            (tag) => tag[0] === "e" && tag.length > 3 && tag[3] === "reply",
-          )
-          .map((ev) => ev[1]);
-        repliedIds.push(...ids);
-      });
+      const mentionIds = mentions.map((item) => item.id);
+      const mentionIdSet = new Set(mentionIds);
 
-      const unrepliedComments = Array.from(othersComments).filter(
-        (event) => !repliedIds.includes(event.id),
-      );
+      const replyFilter: Record<string, unknown> = {
+        kinds: [1],
+        authors: [authorPubkey],
+        "#e": mentionIds,
+      };
+
+      // fetchEvents returns a Set<NDKEvent>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const replyEvents: Set<NDKEvent> = (await (this.ndk as any).fetchEvents(
+        replyFilter,
+      )) as Set<NDKEvent>;
+
+      const repliedIds = new Set<string>();
+      for (const event of replyEvents) {
+        for (const tag of event.tags ?? []) {
+          if (
+            tag[0] === "e" &&
+            tag[1] &&
+            mentionIdSet.has(tag[1]) &&
+            tag.length > 3 &&
+            tag[3] === "reply"
+          ) {
+            repliedIds.add(tag[1]);
+          }
+        }
+      }
+
+      const unrepliedMentions = mentions
+        .filter(({ id }) => !repliedIds.has(id))
+        .map(({ event }) => ({
+          id: event.id,
+          pubkey: event.pubkey,
+          content: event.content,
+          created_at: event.created_at,
+          tags: event.tags,
+        }))
+        .sort((a, b) => (b.created_at ?? 0) - (a.created_at ?? 0));
 
       logger.info(
         {
-          eventId,
-          pendingReplies: unrepliedComments.length,
+          authorPubkey,
+          checked: mentions.length,
+          unreplied: unrepliedMentions.length,
         },
-        "Identified comments awaiting reply",
+        "Fetched unreplied mentions successfully",
       );
 
-      return unrepliedComments.map((event) => ({
-        id: event.id,
-        pubkey: event.pubkey,
-        content: event.content,
-        created_at: event.created_at,
-        tags: event.tags,
-        rootId: eventId,
-      }));
+      return unrepliedMentions;
     } catch (error) {
-      logger.error({ error, args }, "Failed to find unanswered comments");
+      logger.error({ error, args }, "Failed to fetch unreplied mentions");
       if (error instanceof NostrError) {
         throw error;
       }
+
       throw new NostrError(
-        "Failed to find unanswered comments",
+        "Failed to fetch unreplied mentions",
         NostrErrorCode.POST_ERROR,
         500,
       );

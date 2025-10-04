@@ -22,7 +22,7 @@ import {
   GetRepliesSchema,
   GetLatestPostsSchema,
   CreateTimestampAttestationSchema,
-  GetUnansweredCommentsSchema,
+  GetUnrepliedMentionsSchema,
 } from "./types.js";
 import logger from "./utils/logger.js";
 import express from "express";
@@ -291,25 +291,18 @@ export class NostrSseServer implements NostrServer {
           },
         } as Tool,
         {
-          name: "get_unanswered_comments",
+          name: "get_unreplied_mentions",
           description:
-            "Find comments on a note that you haven't replied to yet",
+            "Find recent mentions that tag you via '#p' and have no reply",
           inputSchema: {
             type: "object",
             properties: {
-              eventId: {
-                type: "string",
-                description: "ID of the original note (64-char hex string)",
-                pattern: "^[0-9a-fA-F]{64}$",
-              },
               limit: {
                 type: "number",
-                description: "Max comments to inspect (default 50)",
-                minimum: 1,
-                maximum: 500,
+                description: "Max mentions to inspect (default 10)",
               },
             },
-            required: ["eventId"],
+            required: [],
           },
         } as Tool,
       ],
@@ -335,8 +328,8 @@ export class NostrSseServer implements NostrServer {
             return await this.handleGetLatestPosts(args);
           case "create_timestamp_attestation":
             return await this.handleCreateTimestampAttestation(args);
-          case "get_unanswered_comments":
-            return await this.handleGetUnansweredComments(args);
+          case "get_unreplied_mentions":
+            return await this.handleGetUnrepliedMentions(args);
           default:
             throw new McpError(
               ErrorCode.MethodNotFound,
@@ -502,6 +495,34 @@ export class NostrSseServer implements NostrServer {
     };
   }
 
+  private async handleGetUnrepliedMentions(args: unknown) {
+    const result = GetUnrepliedMentionsSchema.safeParse(args ?? {});
+    if (!result.success) {
+      throw new McpError(
+        ErrorCode.InvalidParams,
+        `Invalid parameters: ${result.error.message}`,
+      );
+    }
+
+    const mentions = await this.client.getUnrepliedMentions(result.data);
+    const lines = mentions.map(
+      (mention, idx) =>
+        `${idx + 1}. ${mention.id} by ${mention.pubkey}\n${mention.content.slice(0, 280)}`,
+    );
+    const body = lines.length
+      ? lines.join("\n\n")
+      : "No unreplied mentions found.";
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: body,
+        },
+      ] as TextContent[],
+    };
+  }
+
   /**
    * Handles the create_timestamp_attestation tool execution
    */
@@ -523,37 +544,6 @@ export class NostrSseServer implements NostrServer {
         {
           type: "text",
           text: `NIP-03 timestamp attestation created!\nAttestation ID: ${attestation.id}\nPublic Key: ${attestation.pubkey}\nEvent ID: ${attestation.eventId}\nEvent Kind: ${attestation.eventKind}\nOTS Proof Length: ${attestation.otsProofLength} bytes`,
-        },
-      ] as TextContent[],
-    };
-  }
-
-  /**
-   * Handles the get_unanswered_comments tool execution
-   */
-  private async handleGetUnansweredComments(args: unknown) {
-    const result = GetUnansweredCommentsSchema.safeParse(args);
-    if (!result.success) {
-      throw new McpError(
-        ErrorCode.InvalidParams,
-        `Invalid parameters: ${result.error.message}`,
-      );
-    }
-
-    const comments = await this.client.getUnansweredComments(result.data);
-    const lines = comments.map(
-      (comment, idx) =>
-        `${idx + 1}. ${comment.id} by ${comment.pubkey}\n${comment.content.slice(0, 280)}`,
-    );
-    const body = lines.length
-      ? lines.join("\n\n")
-      : "No unanswered comments found.";
-
-    return {
-      content: [
-        {
-          type: "text",
-          text: body,
         },
       ] as TextContent[],
     };
