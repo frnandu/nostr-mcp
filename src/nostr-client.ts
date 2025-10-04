@@ -260,17 +260,51 @@ export class NostrClient {
 
       logger.debug({ metadata }, "Creating profile metadata event");
 
+      // First, try to fetch existing profile metadata to preserve existing fields
+      let existingMetadata: Record<string, unknown> = {};
+      try {
+        const currentUser = this.ndk.getUser({ pubkey: this.pubkey });
+        const existingProfile = await currentUser.fetchProfile();
+
+        if (existingProfile) {
+          // Convert NDKUserProfile to plain object, excluding internal fields
+          existingMetadata = { ...existingProfile };
+          // Remove NDK-specific fields that shouldn't be in the metadata
+          delete existingMetadata.created_at;
+          delete existingMetadata.profileEvent;
+
+          logger.debug({ existingMetadata }, "Found existing profile metadata");
+        } else {
+          logger.debug(
+            "No existing profile metadata found, creating new profile",
+          );
+        }
+      } catch (error) {
+        logger.warn(
+          { error },
+          "Failed to fetch existing profile, proceeding with new metadata only",
+        );
+      }
+
+      // Merge existing metadata with new fields (new fields take precedence)
+      const mergedMetadata = { ...existingMetadata, ...metadata };
+
       const event = new NDKEvent(this.ndk);
       event.kind = 0; // Metadata
       // Content must be a JSON string per NIP-01
-      event.content = JSON.stringify(metadata);
+      event.content = JSON.stringify(mergedMetadata);
 
       await event.sign();
       logger.debug({ id: event.id }, "Metadata event signed successfully");
 
       const publishedToRelays = await event.publish();
       logger.info(
-        { id: event.id, pubkey: event.pubkey, publishedToRelays },
+        {
+          id: event.id,
+          pubkey: event.pubkey,
+          publishedToRelays,
+          mergedMetadata,
+        },
         "Profile metadata published successfully",
       );
 
