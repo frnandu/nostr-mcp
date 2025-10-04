@@ -1,6 +1,6 @@
 {
   "name": "@fmar/nostr-mcp",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "A Model Context Protocol server for interacting with Nostr, enabling posting notes and more",
   "type": "module",
   "main": "./build/index.js",
